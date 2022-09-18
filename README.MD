@@ -35,7 +35,7 @@ tello.land()
 
 Using Haar Cascade Classifier To Detect Image
 
-![detection_result](src\image_detection.PNG)
+![detection_result](src/image_detection.PNG)
 
 ## Documentation
 
