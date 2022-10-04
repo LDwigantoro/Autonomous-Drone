@@ -1,12 +1,13 @@
-from djitellopy import Tello
+import logging
+import sys
+import droneapp.controllers.server
 
-tello = Tello()
+import droneapp.controllers.server
 
-tello.connect()
-tello.takeoff()
+# membuat log data
+logging.basicConfig(level=logging.INFO,
+                    stream=sys.stdout
+                    )
 
-tello.move_left(100)
-tello.rotate_counter_clockwise(90)
-tello.move_forward(100)
-
-tello.land()
+if __name__ == '__main__':
+    droneapp.controllers.server.run()
