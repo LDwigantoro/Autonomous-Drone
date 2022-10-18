@@ -1,10 +1,17 @@
 # import library
 import logging
 import contextlib
+import os
 import socket
+import subprocess
 import sys
 import threading
 import time
+
+import cv2 as cv
+import numpy as np
+
+from droneapp.models.base import Singleton
 
 # membuat log data
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -19,8 +26,26 @@ DEFAULT_SPEED= 10
 # kecepatan derajat putaran
 DEFAULT_DEGREE = 10
 
+# Ukuran frame video streaming
+FRAME_X = int(960/3)
+FRAME_Y = int(720/3)
+FRAME_AREA = FRAME_X * FRAME_Y
+
+FRAME_SIZE = FRAME_AREA * 3
+FRAME_CENTER_X = FRAME_X / 2
+FRAME_CENTER_Y = FRAME_Y / 2
+
+CMD_FFMPEG = (f'ffmpeg -hwaccel auto -hwaccel_device opencl -i pipe:0 '
+              f'-pix_fmt bgr24 -s {FRAME_X}x{FRAME_Y} -f rawvideo pipe:1')
+
+# Membuat jalur xml file
+FACE_DETECT_XML_FILE = './droneapp/models/haarcascade_frontalface_default.xml'
+
+class ErrorNoFaceDetectXMLFile(Exception):
+    """ Error No Face Detect XML File"""
+
 # class untuk mengatur drone
-class DroneManager(object):
+class DroneManager(metaclass=Singleton):
     # koneksi UDP untuk mengirim perintah dan menerima respon
     # host_ip='192.168.10.2' host_port=8889 untuk komputer
     # host_ip='192.168.10.2' host_port=8889 untuk drone
@@ -57,6 +82,27 @@ class DroneManager(object):
         self._patrol_semaphore = threading.Semaphore(1)
         self._thread_patrol = None
 
+        # set instance untuk frame video drone
+        self.proc = subprocess.Popen(CMD_FFMPEG.split(' '),
+                                     stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE)
+        self.proc_stdin = self.proc.stdin
+        self.proc_stdout = self.proc.stdout
+
+        self.video_port = 11111
+
+        self._receive_video_thread = threading.Thread(
+            target=self.receive_video,
+            args=(self.stop_event, self.proc_stdin,
+                  self.host_ip, self.video_port,))
+        self._receive_video_thread.start()
+
+        # jika tidak ada file XML
+        if not os.path.exists(FACE_DETECT_XML_FILE):
+            raise ErrorNoFaceDetectXMLFile(f'No {FACE_DETECT_XML_FILE}')
+        self.face_cascade = cv.CascadeClassifier(FACE_DETECT_XML_FILE)
+        self._is_enable_face_detect = False
+
         # set instance untuk pengirim perintah ke drone
         self.send_command('command')
         self.send_command('streamon')
@@ -91,6 +137,9 @@ class DroneManager(object):
                 break
             retry += 1
         self.socket.close()
+        os.kill(self.proc.pid, 9)
+        import signal
+        os.kill(self.proc.pid, signal.CTRL_C_EVENT)
 
     # fungsi untuk mengirim perintah ke drone
     def send_command(self, command):
@@ -158,8 +207,8 @@ class DroneManager(object):
         return self.send_command(f'speed {speed}')
 
     # fungsi untuk drone berputar searah jarum jam
-    def clockwise(self,degree=DEFAULT_DISTANCE):
-        return self.send_command(f'cw{degree}')
+    def clockwise(self, degree=DEFAULT_DISTANCE):
+        return self.send_command(f'cw {degree}')
 
     # fungsi untuk drone berputar berlawanan searah jarum jam
     def counter_clockwise(self, degree=DEFAULT_DISTANCE):
@@ -224,3 +273,64 @@ class DroneManager(object):
                     time.sleep(5)
         else:
             logger.warning({'action': '_patrol', 'status': 'not_acquire'})
+
+    # fungsi untuk rute drone patroli
+    def receive_video(self, stop_event, pipe_in, host_ip, video_port):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock_video:
+            sock_video.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock_video.settimeout(.5)
+            sock_video.bind((host_ip, video_port))
+            data = bytearray(2048)
+            while not stop_event.is_set():
+                try:
+                    size, addr = sock_video.recvfrom_into(data)
+                    # logger.info({'action': 'receive_video', 'data': data})
+                except socket.timeout as ex:
+                    logger.warning({'action': 'receive_video', 'ex': ex })
+                    time.sleep(0.5)
+                    continue
+                except socket.error as ex:
+                    logger.error({'action': 'receive_video', 'ex': ex})
+                    break
+                try:
+                    pipe_in.write(data[:size])
+                    pipe_in.flush()
+                except Exception as ex:
+                    logger.error({'action': 'receive_video', 'ex': ex})
+                    break
+
+    def video_binary_generator(self):
+        while True:
+            try:
+                frame = self.proc_stdout.read(FRAME_SIZE)
+            except Exception as ex:
+                logger.error({'action': 'video_binary_generator', 'ex': ex})
+                continue
+
+            if not frame:
+                continue
+
+            frame = np.fromstring(frame, np.uint8).reshape(FRAME_Y, FRAME_X, 3)
+            yield frame
+
+    def enable_face_detect(self):
+        self._is_enable_face_detect = True
+
+    def disable_face_detect(self):
+        self._is_enable_face_detect = False
+
+    def video_jpeg_generator(self):
+        for frame in self.video_binary_generator():
+            if self._is_enable_face_detect:
+                if self.is_patrol:
+                    self.stop_patrol()
+
+                gray = cv.cvtColor(frame, cv.Color_BGR2GRAY)
+                faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
+                for (x, y, w, h) in faces:
+                    cv.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+                    break
+
+            _, jpeg = cv.imencode('.jpg', frame)
+            jpeg_binary = jpeg.tobytes()
+            yield jpeg_binary
