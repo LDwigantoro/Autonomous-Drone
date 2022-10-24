@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_DISTANCE = 0.30
 
 # kecepatan default 10 cm/s
-DEFAULT_SPEED= 10
+DEFAULT_SPEED = 10
 
 # kecepatan derajat putaran
 DEFAULT_DEGREE = 10
@@ -42,7 +42,7 @@ CMD_FFMPEG = (f'ffmpeg -hwaccel auto -hwaccel_device opencl -i pipe:0 '
 FACE_DETECT_XML_FILE = './droneapp/models/haarcascade_frontalface_default.xml'
 
 class ErrorNoFaceDetectXMLFile(Exception):
-    """ Error No Face Detect XML File"""
+    """Error No Face Detect XML File"""
 
 # class untuk mengatur drone
 class DroneManager(metaclass=Singleton):
@@ -103,6 +103,10 @@ class DroneManager(metaclass=Singleton):
         self.face_cascade = cv.CascadeClassifier(FACE_DETECT_XML_FILE)
         self._is_enable_face_detect = False
 
+        # menyimpan respon drone ke thread
+        self._command_semaphore = threading.Semaphore(1)
+        self._command_thread = None
+
         # set instance untuk pengirim perintah ke drone
         self.send_command('command')
         self.send_command('streamon')
@@ -141,24 +145,37 @@ class DroneManager(metaclass=Singleton):
         import signal
         os.kill(self.proc.pid, signal.CTRL_C_EVENT)
 
-    # fungsi untuk mengirim perintah ke drone
-    def send_command(self, command):
-        logger.info({'action': 'send_command', 'command': command})
-        self.socket.sendto(command.encode('utf-8'), self.drone_address)
+    # fungsi utama untuk mengirim perintah ke drone
+    def send_command(self, command, blocking=True):
+        self._command_thread = threading.Thread(
+            target=self._send_command,
+            args=(command, blocking,))
+        self._command_thread.start()
 
-        retry = 0
-        # jika tidak ada respon dari drone
-        while self.response is None:
-            time.sleep(0.3)
-            if retry > 3:
-                break
-            retry += 1
-        if self.response is None:
-            response = None
+    # fungsi untuk mengirim perintah ke drone
+    def _send_command(self, command, blocking=True):
+        is_acquire = self._command_semaphore.acquire(blocking=blocking)
+        if is_acquire:
+            with contextlib.ExitStack() as stack:
+                stack.callback(self._command_semaphore.release)
+                logger.info({'action': 'send_command', 'command': command})
+                self.socket.sendto(command.encode('utf-8'), self.drone_address)
+
+                retry = 0
+                # jika tidak ada respon dari drone
+                while self.response is None:
+                    time.sleep(0.3)
+                    if retry > 3:
+                         break
+                    retry += 1
+                if self.response is None:
+                    response = None
+                else:
+                    response = self.response.decode('utf-8')
+                self.response = None
+                return response
         else:
-            response = self.response.decode('utf-8')
-        self.response = None
-        return response
+            logger.warning({'action': 'send_command', 'command': command, 'status': 'not_acquire'})
 
     # fungsi untuk drone terbang
     def takeoff(self):
@@ -207,11 +224,11 @@ class DroneManager(metaclass=Singleton):
         return self.send_command(f'speed {speed}')
 
     # fungsi untuk drone berputar searah jarum jam
-    def clockwise(self, degree=DEFAULT_DISTANCE):
+    def clockwise(self, degree=DEFAULT_DEGREE):
         return self.send_command(f'cw {degree}')
 
     # fungsi untuk drone berputar berlawanan searah jarum jam
-    def counter_clockwise(self, degree=DEFAULT_DISTANCE):
+    def counter_clockwise(self, degree=DEFAULT_DEGREE):
         return self.send_command(f'ccw {degree}')
 
     # fungsi untuk drone berbalik ke depan
@@ -274,7 +291,7 @@ class DroneManager(metaclass=Singleton):
         else:
             logger.warning({'action': '_patrol', 'status': 'not_acquire'})
 
-    # fungsi untuk rute drone patroli
+    # fungsi untuk menerima streaming video
     def receive_video(self, stop_event, pipe_in, host_ip, video_port):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock_video:
             sock_video.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -325,10 +342,35 @@ class DroneManager(metaclass=Singleton):
                 if self.is_patrol:
                     self.stop_patrol()
 
-                gray = cv.cvtColor(frame, cv.Color_BGR2GRAY)
+                gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
                 faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
                 for (x, y, w, h) in faces:
                     cv.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
+
+                    # Inisiasi layer area tangkapan drone dan area jangkauan
+                    face_center_x = x + (w/2)
+                    face_center_y = y + (h/2)
+                    diff_x = FRAME_CENTER_X - face_center_x
+                    diff_y = FRAME_CENTER_Y - face_center_y
+                    face_area = w * h
+                    percent_face = face_area / FRAME_AREA
+
+                    # Inisiasi jarak parameter drone saat mendeteksi wajah
+                    drone_x, drone_y, drone_z, speed = 0, 0, 0, self.speed
+                    if diff_x < -30:
+                        drone_y = -30
+                    if diff_x > 30:
+                        drone_y = 30
+                    if diff_y < -15:
+                        drone_z = -30
+                    if diff_y > 15:
+                        drone_z = 30
+                    if percent_face > 0.30:
+                        drone_x = -30
+                    if percent_face < 0.02:
+                        drone_x = 30
+                    self.send_command(f'go {drone_x} {drone_y} {drone_z} {speed}',
+                                      blocking=False)
                     break
 
             _, jpeg = cv.imencode('.jpg', frame)
