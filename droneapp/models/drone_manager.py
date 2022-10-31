@@ -17,11 +17,11 @@ from droneapp.models.base import Singleton
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-# jarak default 30 cm
-DEFAULT_DISTANCE = 0.30
+# jarak default 50 cm
+DEFAULT_DISTANCE = 0.50
 
-# kecepatan default 10 cm/s
-DEFAULT_SPEED = 10
+# kecepatan default 35 cm/s
+DEFAULT_SPEED = 35
 
 # kecepatan derajat putaran
 DEFAULT_DEGREE = 10

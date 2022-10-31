@@ -6,6 +6,29 @@
     .controller-box{
         text-align: center
     }
+    .column {
+        float: left;
+        width: 50%;
+        text-align: center
+    }
+
+    /* Clear floats after the columns */
+    .row:after {
+        content: "";
+        display: table;
+        clear: both;
+    }
+    .center {
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .slider {
+        overflow: hidden;
+        width: 50%;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center
+    }
 </style>
 <script>
     function sendCommand(command, params={}) {
@@ -27,13 +50,15 @@
 
 </script>
 
-<div class="controller-box">
-    <h1>Remote Controller</h1>
-</div>
-<div style="display: flex; justify-content: center;">
-    <table style="align-self: center;">
+<!-- <div class="controller-box">
+    <h1>Controller Drone Otonom</h1>
+</div> -->
+<div class="row">
+  <div class="column">
+      <h3>Controller Drone</h3>
+      <table class="center">
         <td>
-            <div style="text-align: center;">
+            <div>
                 <div class="ui-nodisc-icon ui-alt-icon">
                     <a id="up" href="#"
                        class="ui-btn ui-shadow ui-corner-all ui-icon-carat-u
@@ -57,7 +82,7 @@
         </td>
 
         <td>
-            <div style="text-align: center;">
+            <div>
                 <div class="ui-nodisc-icon ui-alt-icon">
                     <a href="#"
                        class="ui-btn ui-shadow ui-corner-all ui-icon-arrow-u
@@ -83,21 +108,32 @@
             </div>
         </td>
     </table>
-</div>
-
-<div class="controller-box">
-    <div data-role="controlgroup" data-type="horizontal">
+      <div data-role="controlgroup" data-type="horizontal">
+          <h3>Koneksi Drone</h3>
         <a href="#" data-role="button" onclick="sendCommand('takeOff'); return false;">Lepas Landas</a>
         <a href="#" data-role="button" onclick="sendCommand('land'); return false;">Mendarat</a>
     </div>
+  </div>
+  <div class="column">
+      <h3>Video Streaming</h3>
+      <div data-role="controlgroup" data-type="horizontal">
+          <!-- <a href="#" data-role="button" data-inline="true" onclick="sendCommand('patrol'); return false;">Patrol</a> -->
+          <!-- <a href="#" data-role="button" data-inline="true" onclick="sendCommand('stopPatrol'); return false;">Stop Patrol</a> -->
+          <img src="/video/streaming">
+          <br>
+          <h3>Face Detection & Tracking</h3>
+        <a href="#" data-role="button" data-inline="true" onclick="sendCommand('faceDetectAndTrack'); return false;">Deteksi Wajah</a>
+        <a href="#" data-role="button" data-inline="true" onclick="sendCommand('stopFaceDetectAndTrack'); return false;">Stop Deteksi Wajah</a>
+    </div>
+  </div>
 </div>
 
-<div class="controller-box">
-    <h3>Kecepatan</h3>
-    <input type="range" name="slider-2" id="slider-speed" data-highlight="true" min="0" max="100" value="10">
+<div class="slider">
+    <h3>Atur Kecepatan Drone</h3>
+    <input type="range" name="slider-2" id="slider-speed" data-highlight="true" min="0" max="100" value="35">
 </div>
 
-<div class="controller-box">
+ <!-- <div class="controller-box">
     <h3>Berputar</h3>
     <div data-role="controlgroup" data-type="horizontal">
         <a href="#" data-role="button" data-inline="true" onclick="sendCommand('flipFront'); return false;">Maju</a>
@@ -105,19 +141,7 @@
         <a href="#" data-role="button" data-inline="true" onclick="sendCommand('flipRight'); return false;">Kanan</a>
         <a href="#" data-role="button" data-inline="true" onclick="sendCommand('flipBack'); return false;">Mundur</a>
     </div>
-</div>
-
-<div class="controller-box">
-    <h3>Video Streaming</h3>
-    <div data-role="controlgroup" data-type="horizontal">
-        <!-- <a href="#" data-role="button" data-inline="true" onclick="sendCommand('patrol'); return false;">Patrol</a> -->
-        <!-- <a href="#" data-role="button" data-inline="true" onclick="sendCommand('stopPatrol'); return false;">Stop Patrol</a> -->
-        <a href="#" data-role="button" data-inline="true" onclick="sendCommand('faceDetectAndTrack'); return false;">Deteksi Wajah</a>
-        <a href="#" data-role="button" data-inline="true" onclick="sendCommand('stopFaceDetectAndTrack'); return false;">Stop Deteksi Wajah</a>
-    </div>
-    <br>
-    <img src="/video/streaming">
-</div>
+</div> -->
 
 
 {% endblock %}

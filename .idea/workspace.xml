@@ -88,7 +88,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="image_face_detect" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="image_face_detect (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="pytello" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -96,11 +96,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/opencv/video_face_detection" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/opencv/image_face_detection" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/opencv/video_face_detection/image_face_detect.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/opencv/image_face_detection/image_face_detect.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -173,19 +173,20 @@
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Python.image_face_detect" />
+      <item itemvalue="Python.image_face_detect (1)" />
       <item itemvalue="Python.config" />
       <item itemvalue="Python.server" />
       <item itemvalue="Python.main" />
       <item itemvalue="Python.drone_manager" />
-      <item itemvalue="Python.image_face_detect" />
     </list>
     <recent_temporary>
       <list>
         <item itemvalue="Python.main" />
+        <item itemvalue="Python.image_face_detect (1)" />
         <item itemvalue="Python.server" />
         <item itemvalue="Python.config" />
         <item itemvalue="Python.drone_manager" />
-        <item itemvalue="Python.image_face_detect" />
       </list>
     </recent_temporary>
   </component>
